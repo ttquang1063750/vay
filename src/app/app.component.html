@@ -1,0 +1,151 @@
+<div class="container">
+  <mat-toolbar color="primary">
+    <span>Tính Tiền Vay Hàng Tháng</span>
+  </mat-toolbar>
+
+  <mat-card appearance="outlined" class="main-card">
+    <mat-card-content>
+      <form [formGroup]="loanForm" (ngSubmit)="calculate()">
+        <div class="form-grid">
+          <mat-form-field appearance="fill">
+            <mat-label>Số tiền cần vay (VND)</mat-label>
+            <input
+              matInput
+              formControlName="amount"
+              mask="separator.0"
+              thousandSeparator="."
+              suffix=" VND"
+              placeholder="0 VND"
+            />
+            @if (loanForm.get('amount')?.invalid && loanForm.get('amount')?.touched) {
+              <mat-error>Vui lòng nhập số tiền hợp lệ.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="fill">
+            <mat-label>Thời hạn vay (tháng)</mat-label>
+            <input matInput type="number" formControlName="term" placeholder="Ví dụ: 36" />
+            @if (loanForm.get('term')?.invalid && loanForm.get('term')?.touched) {
+              <mat-error>Vui lòng nhập số tháng hợp lệ (>0).</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="fill">
+            <mat-label>Phương thức trả</mat-label>
+            <mat-select formControlName="method">
+              <mat-option value="annuity">Trả góp đều hàng tháng (Annuity)</mat-option>
+              <mat-option value="equal-principal">Trả gốc đều, lãi giảm dần</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <h3>Lãi suất theo thời kỳ</h3>
+        <div formArrayName="rates">
+          @for (rateGroup of rates.controls; track rateGroup; let i = $index) {
+            <div [formGroupName]="i" class="rate-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Từ tháng</mat-label>
+                <input matInput type="number" formControlName="fromMonth" [readonly]="i === 0" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Đến tháng</mat-label>
+                <input matInput type="number" formControlName="toMonth" placeholder="Hết hạn" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Lãi suất (%/năm)</mat-label>
+                <input matInput type="number" step="0.1" formControlName="rate" />
+              </mat-form-field>
+
+              @if (rates.length > 1) {
+                <button mat-icon-button color="warn" type="button" (click)="$event.stopPropagation(); removeRate(i)">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="actions">
+          <button mat-stroked-button color="primary" type="button" (click)="addRate()">
+            <mat-icon>add</mat-icon> Thêm lãi suất điều chỉnh
+          </button>
+          <button mat-raised-button color="primary" type="submit" [disabled]="loanForm.invalid">
+            Tính toán
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  @if (results().length > 0) {
+    <div class="results-container">
+      <div class="results-header">
+        <h2>Kết quả tính toán</h2>
+        <button mat-raised-button color="accent" (click)="exportToExcel()">
+          <mat-icon>download</mat-icon> Tải về Excel (.xlsx)
+        </button>
+      </div>
+
+      <div class="summary-cards">
+        <mat-card class="summary-card">
+          <mat-card-subtitle>Tổng tiền phải trả</mat-card-subtitle>
+          <mat-card-title>{{ totalPayable() | currency: 'VND' : 'symbol' : '1.0-0' }}</mat-card-title>
+        </mat-card>
+        <mat-card class="summary-card">
+          <mat-card-subtitle>Tổng lãi</mat-card-subtitle>
+          <mat-card-title>{{ totalInterest() | currency: 'VND' : 'symbol' : '1.0-0' }}</mat-card-title>
+        </mat-card>
+        <mat-card class="summary-card">
+          <mat-card-subtitle>Tổng gốc</mat-card-subtitle>
+          <mat-card-title>{{ totalPrincipal() | currency: 'VND' : 'symbol' : '1.0-0' }}</mat-card-title>
+        </mat-card>
+      </div>
+
+      <div class="table-container mat-elevation-z2">
+        <table mat-table [dataSource]="results()" class="mat-elevation-z0">
+          <ng-container matColumnDef="month">
+            <th mat-header-cell *matHeaderCellDef>Tháng thứ</th>
+            <td mat-cell *matCellDef="let row">{{ row.month }}</td>
+            <td mat-footer-cell *matFooterCellDef>Tổng cộng</td>
+          </ng-container>
+
+          <ng-container matColumnDef="openingBalance">
+            <th mat-header-cell *matHeaderCellDef>Dư nợ đầu kỳ</th>
+            <td mat-cell *matCellDef="let row">{{ row.openingBalance | currency: 'VND' : 'symbol' : '1.0-0' }}</td>
+            <td mat-footer-cell *matFooterCellDef>-</td>
+          </ng-container>
+
+          <ng-container matColumnDef="interest">
+            <th mat-header-cell *matHeaderCellDef>Lãi tháng đó</th>
+            <td mat-cell *matCellDef="let row">{{ row.interest | currency: 'VND' : 'symbol' : '1.0-0' }}</td>
+            <td mat-footer-cell *matFooterCellDef>{{ totalInterest() | currency: 'VND' : 'symbol' : '1.0-0' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="principal">
+            <th mat-header-cell *matHeaderCellDef>Gốc trả</th>
+            <td mat-cell *matCellDef="let row">{{ row.principal | currency: 'VND' : 'symbol' : '1.0-0' }}</td>
+            <td mat-footer-cell *matFooterCellDef>{{ totalPrincipal() | currency: 'VND' : 'symbol' : '1.0-0' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="total">
+            <th mat-header-cell *matHeaderCellDef>Tổng phải trả</th>
+            <td mat-cell *matCellDef="let row">{{ row.total | currency: 'VND' : 'symbol' : '1.0-0' }}</td>
+            <td mat-footer-cell *matFooterCellDef>{{ totalPayable() | currency: 'VND' : 'symbol' : '1.0-0' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="closingBalance">
+            <th mat-header-cell *matHeaderCellDef>Dư nợ cuối kỳ</th>
+            <td mat-cell *matCellDef="let row">{{ row.closingBalance | currency: 'VND' : 'symbol' : '1.0-0' }}</td>
+            <td mat-footer-cell *matFooterCellDef>-</td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+          <tr mat-footer-row *matFooterRowDef="displayedColumns"></tr>
+        </table>
+      </div>
+    </div>
+  }
+</div>
