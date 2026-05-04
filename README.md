@@ -1,6 +1,16 @@
-# LoanCalculator
+# Loan Calculator
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.3.
+A professional loan calculator built with Angular 21, Angular Material, and `ngx-mask`.
+
+## Links
+- **Live Demo:** [https://ttquang1063750.github.io/vay/](https://ttquang1063750.github.io/vay/)
+- **GitHub Repository:** [https://github.com/ttquang1063750/vay](https://github.com/ttquang1063750/vay)
+
+## Features
+- Loan amount and interest rate calculations.
+- Amortization schedule.
+- Excel export functionality.
+- Responsive design with Angular Material.
 
 ## Development server
 
