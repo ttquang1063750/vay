@@ -14,6 +14,7 @@ This file contains foundational mandates for the **Loan Calculator** project. Th
   - **Linting:** ESLint with `typescript-eslint` and `angular-eslint`.
   - **Unit Testing:** Vitest with official Angular builder.
   - **E2E Testing:** Cypress with `@cypress/schematic`.
+- **Deployment:** GitHub Pages (managed via `angular-cli-ghpages`).
 
 ## Engineering Standards
 
@@ -43,3 +44,6 @@ This file contains foundational mandates for the **Loan Calculator** project. Th
 
 - **Prettier:** Follow the project's `.prettierrc` configuration for all file changes.
 - **Angular CLI:** Use `ng` commands for generating boilerplate to maintain consistency.
+- **Deployment Skill:** Use the `angular-gh-deploy` skill for pushing to GitHub and deploying to GitHub Pages.
+- **Build for Deploy:** Always build with `--base-href /vay/` when deploying to GitHub Pages to ensure correct asset pathing.
+- **Deployment Command:** `npx angular-cli-ghpages --dir dist/loan-calculator/browser`.
