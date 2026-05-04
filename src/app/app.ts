@@ -1,6 +1,13 @@
 import { Component, computed, signal, inject } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
-import { FormArray, FormBuilder, ReactiveFormsModule, Validators, FormGroup, FormControl } from '@angular/forms';
+import {
+  FormArray,
+  FormBuilder,
+  ReactiveFormsModule,
+  Validators,
+  FormGroup,
+  FormControl,
+} from '@angular/forms';
 import { NgxMaskDirective } from 'ngx-mask';
 import * as XLSX from 'xlsx';
 
@@ -67,7 +74,14 @@ export class AppComponent {
 
   loanForm: FormGroup<LoanForm>;
   results = signal<CalculationRow[]>([]);
-  displayedColumns: string[] = ['month', 'openingBalance', 'interest', 'principal', 'total', 'closingBalance'];
+  displayedColumns: string[] = [
+    'month',
+    'openingBalance',
+    'interest',
+    'principal',
+    'total',
+    'closingBalance',
+  ];
 
   totalPrincipal = computed(() => this.results().reduce((acc, row) => acc + row.principal, 0));
   totalInterest = computed(() => this.results().reduce((acc, row) => acc + row.interest, 0));
@@ -126,13 +140,15 @@ export class AppComponent {
         ratePeriods[ratePeriods.length - 1];
       const monthlyRate = period.rate / 100 / 12;
 
-      const interest = remainingBalance * monthlyRate;
+      let interest = remainingBalance * monthlyRate;
       let principal: number;
       let total: number;
 
       if (method === 'equal-principal') {
         principal = principalTotal / term;
-        total = principal + interest;
+      } else if (method === 'flat-rate') {
+        interest = principalTotal * monthlyRate;
+        principal = principalTotal / term;
       } else {
         const remainingTerm = term - m + 1;
         if (monthlyRate > 0) {
@@ -145,21 +161,20 @@ export class AppComponent {
         principal = total - interest;
       }
 
-      if (m === term) {
-        principal = remainingBalance;
-        total = principal + interest;
-      }
+      const roundedInterest = Math.round(interest);
+      const roundedPrincipal = m === term ? remainingBalance : Math.round(principal);
+      const roundedTotal = roundedInterest + roundedPrincipal;
 
       const openingBalance = remainingBalance;
-      remainingBalance -= principal;
+      remainingBalance -= roundedPrincipal;
 
       schedule.push({
         month: m,
         openingBalance,
-        interest: Math.round(interest),
-        principal: Math.round(principal),
-        total: Math.round(total),
-        closingBalance: Math.max(0, Math.round(remainingBalance)),
+        interest: roundedInterest,
+        principal: roundedPrincipal,
+        total: roundedTotal,
+        closingBalance: Math.max(0, remainingBalance),
       });
     }
 
@@ -167,25 +182,56 @@ export class AppComponent {
   }
 
   exportToExcel() {
-    const data: Record<string, string | number | null>[] = this.results().map((row) => ({
-      'Tháng thứ': row.month,
-      'Dư nợ đầu kỳ': row.openingBalance,
-      'Lãi tháng đó': row.interest,
-      'Gốc trả': row.principal,
-      'Tổng phải trả': row.total,
-      'Dư nợ cuối kỳ': row.closingBalance,
-    }));
+    const formValue = this.loanForm.getRawValue();
+    const ratePeriods: InterestRatePeriod[] = formValue.rates;
+    const methodName =
+      formValue.method === 'annuity'
+        ? 'Trả góp đều (Annuity)'
+        : formValue.method === 'equal-principal'
+          ? 'Gốc đều, lãi giảm dần'
+          : 'Lãi phẳng (Flat rate)';
+
+    const data: Record<string, string | number | null>[] = this.results().map((row) => {
+      const period =
+        ratePeriods.find(
+          (p) => row.month >= p.fromMonth && (!p.toMonth || row.month <= p.toMonth),
+        ) || ratePeriods[ratePeriods.length - 1];
+      return {
+        'Tháng thứ': row.month,
+        'Dư nợ đầu kỳ': row.openingBalance,
+        'Lãi suất (%)': period.rate,
+        'Lãi tháng đó': row.interest,
+        'Gốc trả': row.principal,
+        'Tổng phải trả': row.total,
+        'Dư nợ cuối kỳ': row.closingBalance,
+        'Phương thức trả': methodName,
+      };
+    });
 
     data.push({
       'Tháng thứ': 'TỔNG CỘNG',
       'Dư nợ đầu kỳ': null,
+      'Lãi suất (%)': null,
       'Lãi tháng đó': this.totalInterest(),
       'Gốc trả': this.totalPrincipal(),
       'Tổng phải trả': this.totalPayable(),
       'Dư nợ cuối kỳ': null,
+      'Phương thức trả': null,
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
+    const worksheetData = [
+      ['THÔNG TIN KHOẢN VAY'],
+      ['Số tiền vay:', formValue.amount],
+      ['Thời hạn vay:', formValue.term + ' tháng'],
+      ['Phương thức trả:', methodName],
+      ['Tổng lãi phải trả:', this.totalInterest()],
+      ['Tổng số tiền phải trả:', this.totalPayable()],
+      [], // Empty row
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    XLSX.utils.sheet_add_json(worksheet, data, { origin: 'A8' });
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Lịch trả nợ');
 

@@ -11,6 +11,6 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     provideBrowserGlobalErrorListeners(),
     provideEnvironmentNgxMask(),
-    { provide: LOCALE_ID, useValue: 'vi-VN' }
+    { provide: LOCALE_ID, useValue: 'vi-VN' },
   ],
 };

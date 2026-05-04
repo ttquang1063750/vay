@@ -16,7 +16,7 @@ describe('Loan Calculator E2E', () => {
     // Check results are displayed
     cy.get('.results-container').should('be.visible');
     cy.get('.summary-cards').should('contain', '120.000.000'); // Check total principal
-    
+
     // Check table
     cy.get('table').should('exist');
     cy.get('table tbody tr').should('have.length', 12);
@@ -26,7 +26,7 @@ describe('Loan Calculator E2E', () => {
     cy.get('.rate-row').should('have.length', 1);
     cy.get('button').contains('Thêm lãi suất điều chỉnh').click();
     cy.get('.rate-row').should('have.length', 2);
-    
+
     // Check remove button
     cy.get('.rate-row').last().find('button[color="warn"]').click();
     cy.get('.rate-row').should('have.length', 1);
