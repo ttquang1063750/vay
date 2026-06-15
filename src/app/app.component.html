@@ -1,6 +1,10 @@
 <div class="container">
   <mat-toolbar color="primary">
     <span>Tính Tiền Vay Hàng Tháng</span>
+    <span class="toolbar-spacer"></span>
+    <a mat-stroked-button href="https://js-tools.org" target="_blank" rel="noopener">
+      <mat-icon>home</mat-icon> js-tools.org
+    </a>
   </mat-toolbar>
 
   <mat-card appearance="outlined" class="main-card">
@@ -28,6 +32,13 @@
             @if (loanForm.get('term')?.invalid && loanForm.get('term')?.touched) {
               <mat-error>Vui lòng nhập số tháng hợp lệ (>0).</mat-error>
             }
+          </mat-form-field>
+
+          <mat-form-field appearance="fill">
+            <mat-label>Ngày bắt đầu đóng tiền</mat-label>
+            <input matInput [matDatepicker]="startDatePicker" formControlName="startDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #startDatePicker></mat-datepicker>
           </mat-form-field>
 
           <mat-form-field appearance="fill">
@@ -121,6 +132,12 @@
             <th mat-header-cell *matHeaderCellDef>Tháng thứ</th>
             <td mat-cell *matCellDef="let row">{{ row.month }}</td>
             <td mat-footer-cell *matFooterCellDef>Tổng cộng</td>
+          </ng-container>
+
+          <ng-container matColumnDef="paymentDate">
+            <th mat-header-cell *matHeaderCellDef>Ngày đóng tiền</th>
+            <td mat-cell *matCellDef="let row">{{ row.paymentDate | date: 'dd/MM/yyyy' }}</td>
+            <td mat-footer-cell *matFooterCellDef>-</td>
           </ng-container>
 
           <ng-container matColumnDef="openingBalance">

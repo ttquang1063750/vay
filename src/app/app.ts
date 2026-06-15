@@ -1,5 +1,6 @@
 import { Component, computed, signal, inject } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
+import { provideNativeDateAdapter } from '@angular/material/core';
 import {
   FormArray,
   FormBuilder,
@@ -20,6 +21,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 
 interface InterestRatePeriod {
   fromMonth: number;
@@ -37,11 +39,13 @@ interface LoanForm {
   amount: FormControl<number>;
   term: FormControl<number>;
   method: FormControl<string>;
+  startDate: FormControl<Date>;
   rates: FormArray<FormGroup<RateForm>>;
 }
 
 interface CalculationRow {
   month: number;
+  paymentDate: Date;
   openingBalance: number;
   interest: number;
   principal: number;
@@ -64,8 +68,9 @@ interface CalculationRow {
     MatButtonModule,
     MatIconModule,
     MatTableModule,
+    MatDatepickerModule,
   ],
-  providers: [CurrencyPipe],
+  providers: [CurrencyPipe, provideNativeDateAdapter()],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
@@ -76,6 +81,7 @@ export class AppComponent {
   results = signal<CalculationRow[]>([]);
   displayedColumns: string[] = [
     'month',
+    'paymentDate',
     'openingBalance',
     'interest',
     'principal',
@@ -92,6 +98,7 @@ export class AppComponent {
       amount: [100000000, [Validators.required, Validators.min(1000000)]],
       term: [12, [Validators.required, Validators.min(1)]],
       method: ['annuity', Validators.required],
+      startDate: this.fb.control<Date>(new Date(), Validators.required),
       rates: this.fb.array([
         this.fb.group({
           fromMonth: [1, Validators.required],
@@ -130,6 +137,7 @@ export class AppComponent {
     const term = formValue.term;
     const method = formValue.method;
     const ratePeriods: InterestRatePeriod[] = formValue.rates;
+    const startDate = formValue.startDate;
 
     const schedule: CalculationRow[] = [];
     let remainingBalance = principalTotal;
@@ -168,8 +176,12 @@ export class AppComponent {
       const openingBalance = remainingBalance;
       remainingBalance -= roundedPrincipal;
 
+      const paymentDate = new Date(startDate);
+      paymentDate.setMonth(paymentDate.getMonth() + m);
+
       schedule.push({
         month: m,
+        paymentDate,
         openingBalance,
         interest: roundedInterest,
         principal: roundedPrincipal,
@@ -198,6 +210,7 @@ export class AppComponent {
         ) || ratePeriods[ratePeriods.length - 1];
       return {
         'Tháng thứ': row.month,
+        'Ngày đóng tiền': row.paymentDate.toLocaleDateString('vi-VN'),
         'Dư nợ đầu kỳ': row.openingBalance,
         'Lãi suất (%)': period.rate,
         'Lãi tháng đó': row.interest,
@@ -210,6 +223,7 @@ export class AppComponent {
 
     data.push({
       'Tháng thứ': 'TỔNG CỘNG',
+      'Ngày đóng tiền': null,
       'Dư nợ đầu kỳ': null,
       'Lãi suất (%)': null,
       'Lãi tháng đó': this.totalInterest(),

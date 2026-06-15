@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ttquang1063750.github.io/vay/sitemap.xml
